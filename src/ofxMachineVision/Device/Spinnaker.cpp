@@ -98,6 +98,9 @@ namespace ofxMachineVision {
 			this->setupFloatParameter(this->camera->Gain);
 			this->setupFloatParameter(this->camera->Gamma);
 
+			//always capture the latest image from the camera (ideally this should be a parameter)
+			this->camera->TLStream.StreamBufferHandlingMode.SetValue(::Spinnaker::StreamBufferHandlingMode_NewestFirstOverwrite);
+
 			//build trigger parameter
 			auto & spinnakerParameter = this->camera->TriggerMode;
 			try {
@@ -161,15 +164,33 @@ namespace ofxMachineVision {
 		shared_ptr<Frame> Spinnaker::getFrame() {
 			shared_ptr<Frame> frame;
 			try {
-				auto image = this->camera->GetNextImage(1000);
+				// Pull the camera frame from the Spinnaker SDK
+				auto cameraImage = this->camera->GetNextImage(1000);
+
+				// This will change if conversion needs to happen - but this image does not need to be released
+				auto image = cameraImage;
+
 				if (image->IsIncomplete()) {
 					stringstream ss;
-					ss << image->GetImageStatus();
-					throw(ofxMachineVision::Exception(ss.str()));
+					throw(ofxMachineVision::Exception("Incomplete image"));
 				}
 				else {
-					auto spinnakerFormat = image->GetPixelFormat();
-					auto ofFormat = Spinnaker::toOf(spinnakerFormat);
+					// Handle Bayer images
+					switch (image->GetPixelFormat()) {
+					case ::Spinnaker::PixelFormat_BayerRG8:
+					case ::Spinnaker::PixelFormat_BayerBG8:
+						// Needs debayering conversion
+						{
+							auto cameraImage = image;
+							image = cameraImage->Convert(::Spinnaker::PixelFormat_RGB8, ::Spinnaker::NEAREST_NEIGHBOR);
+							break;
+						}
+					default:
+						// No debayering conversion
+						break;
+					}
+
+					auto ofFormat = Spinnaker::toOf(image->GetPixelFormat());
 
 					if (ofFormat == ofPixelFormat::OF_PIXELS_UNKNOWN) {
 						stringstream ss;
@@ -177,21 +198,28 @@ namespace ofxMachineVision {
 						throw(ofxMachineVision::Exception(ss.str()));
 					}
 					else {
-						frame = FramePool::X().getAvailableFrameFilledWith((unsigned char *) image->GetData(), image->GetWidth(), image->GetHeight(), toOf(image->GetPixelFormat()));
+						// Fill a frame in the frame pool with the data from the Point Grey image
+
+						frame = FramePool::X().getAvailableFrameFilledWith(
+							(unsigned char *) image->GetData()
+							, image->GetWidth()
+							, image->GetHeight()
+							, toOf(image->GetPixelFormat()));
+
 						if (this->flipCamera) {
 							frame->getPixels().rotate90(2);
 						}
 
-						frame->setTimestamp(chrono::nanoseconds(image->GetTimeStamp()));
-						frame->setFrameIndex(image->GetFrameID());
+						frame->setTimestamp(chrono::nanoseconds(cameraImage->GetTimeStamp()));
+						frame->setFrameIndex(cameraImage->GetFrameID());
 					}
 				}
-				image->Release();
+				cameraImage->Release();
 
 				return frame;
 			}
-			catch (const std::exception & e) {
-				throw(ofxMachineVision::Exception(e.what()));
+			catch (const ::Spinnaker::Exception & e) {
+				throw(ofxMachineVision::Exception(string(e.GetFunctionName()) + " : " + string(e.GetErrorMessage())));
 			}
 		}
 
