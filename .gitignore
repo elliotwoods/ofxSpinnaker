@@ -16,10 +16,12 @@ build/
 !data/
 xcuserdata/
 
+.vs/**
 ipch/
 *.suo
 *.opensdf
 *.vcxproj.user
+*.vsxproj.filters
 
 *.obj
 *.tlog
@@ -32,3 +34,4 @@ Release/
 
 
 *~.xml
+._build
