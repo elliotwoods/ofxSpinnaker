@@ -7,7 +7,7 @@
   <PropertyGroup />
   <ItemDefinitionGroup>
     <ClCompile>
-      <AdditionalIncludeDirectories>$(OF_ROOT)/addons/ofxSpinnaker/libs/Spinnaker/include;$(OF_ROOT)/addons/ofxSpinnaker/src;%(AdditionalIncludeDirectories)</AdditionalIncludeDirectories>
+      <AdditionalIncludeDirectories>$(OF_ROOT)/addons/ofxSpinnaker/libs/Spinnaker/include;$(OF_ROOT)/addons/ofxSpinnaker/libs/Spinnaker/include/spinnaker;$(OF_ROOT)/addons/ofxSpinnaker/src;%(AdditionalIncludeDirectories)</AdditionalIncludeDirectories>
     </ClCompile>
   </ItemDefinitionGroup>
   <ItemGroup />
